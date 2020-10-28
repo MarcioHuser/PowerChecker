@@ -1,6 +1,5 @@
 ﻿#include "PowerCheckerLogic.h"
 
-
 #include "FGBuildableGenerator.h"
 #include "FGBuildableRailroadStation.h"
 #include "FGCircuitSubsystem.h"
@@ -10,7 +9,7 @@
 #include "FGTrainStationIdentifier.h"
 #include "PowerCheckerModule.h"
 
-#include "util/Logging.h"
+#include "SML/util/Logging.h"
 
 #include "Util/Optimize.h"
 
@@ -129,13 +128,18 @@ float APowerCheckerLogic::GetMaximumPotential(UFGCircuitConnectionComponent* pow
             }
         }
 
-        SML::Logging::info(
-            *getTimeStamp(),
-            TEXT(" PowerChecker: "),
-            *nextBuilding->GetName(),
-            TEXT(" / "),
-            *nextBuilding->GetClass()->GetPathName()
-            );
+        auto className = nextBuilding->GetClass()->GetPathName();
+
+        if (FPowerCheckerModule::logInfoEnabled)
+        {
+            SML::Logging::info(
+                *getTimeStamp(),
+                TEXT(" PowerChecker: "),
+                *nextBuilding->GetName(),
+                TEXT(" / "),
+                *className
+                );
+        }
 
         for (auto connection : connections)
         {
@@ -151,11 +155,16 @@ float APowerCheckerLogic::GetMaximumPotential(UFGCircuitConnectionComponent* pow
         auto generator = Cast<AFGBuildableGenerator>(nextBuilding);
         auto factory = Cast<AFGBuildableFactory>(nextBuilding);
 
-        if (nextBuilding->GetClass()->GetPathName() == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
+        if (className == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
         {
-            dumpUnknownClass(nextBuilding);
+            if (FPowerCheckerModule::logInfoEnabled)
+            {
+                SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: 20"));
+            }
+
+            totalMaximumPotential += 20;
         }
-        else if (nextBuilding->GetClass()->GetPathName() == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
+        else if (className == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
         {
             if (!teleporterFound)
             {
@@ -164,6 +173,11 @@ float APowerCheckerLogic::GetMaximumPotential(UFGCircuitConnectionComponent* pow
                 FScopeLock ScopeLock(&singleton->eclCritical);
 
                 totalMaximumPotential += 1;
+
+                if (FPowerCheckerModule::logInfoEnabled)
+                {
+                    SML::Logging::info(*getTimeStamp(), TEXT("    Hub Power Comsumption: 1"));
+                }
 
                 for (auto teleporter : singleton->allTeleporters)
                 {
@@ -174,14 +188,16 @@ float APowerCheckerLogic::GetMaximumPotential(UFGCircuitConnectionComponent* pow
                     {
                         if (connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
                         {
-                            SML::Logging::info(*getTimeStamp(), TEXT("    Teleporter "), *teleporter->GetPathName(), TEXT(" has output connection"));
+                            if (FPowerCheckerModule::logInfoEnabled)
+                            {
+                                SML::Logging::info(*getTimeStamp(), TEXT("    Teleporter "), *teleporter->GetPathName(), TEXT(" has output connection. Consumption: 10"));
+                            }
 
                             totalMaximumPotential += 10;
                         }
                     }
                 }
             }
-            // dumpUnknownClass(nextBuilding);
         }
         else if (generator)
         {
@@ -190,20 +206,23 @@ float APowerCheckerLogic::GetMaximumPotential(UFGCircuitConnectionComponent* pow
         {
             if (!factory->IsProductionPaused() && factory->IsConfigured())
             {
-                SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), factory->GetDefaultProducingPowerConsumption());
-                SML::Logging::info(*getTimeStamp(), TEXT("    Pending Potential: "), factory->GetPendingPotential());
-                SML::Logging::info(
-                    *getTimeStamp(),
-                    TEXT("    Producing Power Consumption For Potential: "),
-                    factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())
-                    );
+                if (FPowerCheckerModule::logInfoEnabled)
+                {
+                    SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), factory->GetDefaultProducingPowerConsumption());
+                    SML::Logging::info(*getTimeStamp(), TEXT("    Pending Potential: "), factory->GetPendingPotential());
+                    SML::Logging::info(
+                        *getTimeStamp(),
+                        TEXT("    Producing Power Consumption For Potential: "),
+                        factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())
+                        );
+                }
 
                 totalMaximumPotential += factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential());
             }
         }
         else
         {
-            dumpUnknownClass(nextBuilding);
+            // dumpUnknownClass(nextBuilding);
         }
     }
 
