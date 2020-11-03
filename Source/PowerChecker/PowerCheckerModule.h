@@ -18,4 +18,6 @@ public:
     }
 
     static bool logInfoEnabled;
+
+    static TMap<FString, float> powerConsumptionMap;
 };

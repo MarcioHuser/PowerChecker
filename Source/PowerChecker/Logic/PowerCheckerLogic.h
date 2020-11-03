@@ -1,9 +1,32 @@
 ﻿#pragma once
 
 #include "FGBuildableFactory.h"
+#include "FGBuildDescriptor.h"
 #include "FGPowerConnectionComponent.h"
 
 #include "PowerCheckerLogic.generated.h"
+
+USTRUCT(Blueprintable)
+struct POWERCHECKER_API FPowerDetail
+{
+    GENERATED_USTRUCT_BODY()
+public:
+
+    UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="PowerCheckerLogic|PowerDetail")
+    TSubclassOf<UFGItemDescriptor> buildingType;
+
+    UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="PowerCheckerLogic|PowerDetail")
+    float powerPerBuilding = 0;
+
+    UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="PowerCheckerLogic|PowerDetail")
+    int potential = 100;
+
+    UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="PowerCheckerLogic|PowerDetail")
+    int amount = 0;
+
+public:
+    FORCEINLINE ~FPowerDetail() = default;
+};
 
 UCLASS(Blueprintable)
 class POWERCHECKER_API APowerCheckerLogic : public AActor
@@ -13,14 +36,27 @@ public:
     APowerCheckerLogic();
 
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
-    static float GetMaximumPotential(UFGCircuitConnectionComponent* powerConnection);
+    static void GetMaximumPotential
+    (
+        UFGPowerConnectionComponent* powerConnection,
+        float& totalMaximumPotential
+    );
+
+    UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
+    static void GetMaximumPotentialWithDetails
+    (
+        UFGPowerConnectionComponent* powerConnection,
+        float& totalMaximumPotential,
+        bool includePowerDetails,
+        TArray<FPowerDetail>& outPowerDetails
+    );
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category="PowerCheckerLogic")
-        static bool IsLogInfoEnabled();
+    static bool IsLogInfoEnabled();
 
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
     virtual void Initialize();
-    
+
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
     virtual void Terminate();
 
@@ -28,7 +64,7 @@ public:
     virtual bool IsValidBuildable(class AFGBuildable* newBuildable);
 
     static void dumpUnknownClass(AActor* owner);
-    
+
     inline static FString
     getTimeStamp()
     {
@@ -39,13 +75,13 @@ public:
 
     UFUNCTION()
     virtual void OnFGBuildableSubsystemBuildableConstructed(AFGBuildable* buildable);
-    
+
     static APowerCheckerLogic* singleton;
 
     FCriticalSection eclCritical;
 
     TSet<class AFGBuildable*> allTeleporters;
-    
+
     FActorEndPlaySignature::FDelegate removeTeleporterDelegate;
 
     virtual void addTeleporter(AFGBuildable* actor);

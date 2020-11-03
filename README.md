@@ -1,7 +1,7 @@
 # Efficiency Checker Mod
 See if your power can blow up!
 
-See the mod at [ficsit.app]()
+See the mod at [ficsit.app](https://ficsit.app/mod/4FPiHxChyn2nbC)
 
 # Discord Server
 Join the [discord server](https://discord.gg/X6AUfn) to talk about Satisfactory Modding in general.

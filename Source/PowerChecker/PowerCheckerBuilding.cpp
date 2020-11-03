@@ -17,9 +17,13 @@ EProductionStatus APowerCheckerBuilding::GetProductionIndicatorStatus() const
 
     auto powerInfo = GetPowerInfo();
 
-    if(!powerInfo || powerInfo->IsFuseTriggered())
+    if (!powerInfo)
     {
         return EProductionStatus::IS_NONE;
+    }
+    else if (powerInfo->IsFuseTriggered())
+    {
+        return EProductionStatus::IS_ERROR;
     }
 
     return productionStatus;
