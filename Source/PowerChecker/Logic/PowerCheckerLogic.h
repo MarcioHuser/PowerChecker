@@ -54,6 +54,12 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category="PowerCheckerLogic")
     static bool IsLogInfoEnabled();
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category="PowerCheckerLogic")
+    static float GetMaximumPlayerDistance();
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category="PowerCheckerLogic")
+    static float GetSpareLimit();
+
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
     virtual void Initialize();
 

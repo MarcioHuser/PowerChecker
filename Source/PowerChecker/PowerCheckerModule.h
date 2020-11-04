@@ -3,6 +3,8 @@
 #include "DateTime.h"
 #include "ModuleManager.h"
 
+#include <map>
+
 class FPowerCheckerModule: public FDefaultGameModuleImpl {
 public:
     virtual void StartupModule() override;
@@ -18,6 +20,7 @@ public:
     }
 
     static bool logInfoEnabled;
-
-    static TMap<FString, float> powerConsumptionMap;
+    static float maximumPlayerDistance;
+    static float spareLimit;
+    static std::map<FString, float> powerConsumptionMap;
 };

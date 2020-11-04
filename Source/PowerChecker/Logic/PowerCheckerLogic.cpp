@@ -178,20 +178,38 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
         auto generator = Cast<AFGBuildableGenerator>(nextBuilding);
         auto factory = Cast<AFGBuildableFactory>(nextBuilding);
 
-        if (className == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
+        auto powerIt = FPowerCheckerModule::powerConsumptionMap.find(className);
+
+        // if (className == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
+        // {
+        //     if (FPowerCheckerModule::logInfoEnabled)
+        //     {
+        //         SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: 20"));
+        //     }
+        //
+        //     totalMaximumPotential += 20;
+        //
+        //     if (buildDescriptor && includePowerDetails)
+        //     {
+        //         buildingDetails[buildDescriptor]
+        //             [-20]
+        //             [100]++;
+        //     }
+        // }
+        if (powerIt != FPowerCheckerModule::powerConsumptionMap.end())
         {
             if (FPowerCheckerModule::logInfoEnabled)
             {
-                SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: 20"));
+                SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), powerIt->second);
             }
 
-            totalMaximumPotential += 20;
+            totalMaximumPotential += powerIt->second;
 
             if (buildDescriptor && includePowerDetails)
             {
                 buildingDetails[buildDescriptor]
-                    [-20]
-                    [100]++;
+                    [powerIt->second]
+                    [factory ? factory->GetPendingPotential() : 100]++;
             }
         }
         else if (className == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
@@ -356,6 +374,16 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 bool APowerCheckerLogic::IsLogInfoEnabled()
 {
     return FPowerCheckerModule::logInfoEnabled;
+}
+
+float APowerCheckerLogic::GetMaximumPlayerDistance()
+{
+    return FPowerCheckerModule::maximumPlayerDistance;
+}
+
+float APowerCheckerLogic::GetSpareLimit()
+{
+    return FPowerCheckerModule::spareLimit;
 }
 
 void APowerCheckerLogic::dumpUnknownClass(AActor* owner)
