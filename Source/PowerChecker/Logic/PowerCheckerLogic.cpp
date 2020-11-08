@@ -178,8 +178,6 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
         auto generator = Cast<AFGBuildableGenerator>(nextBuilding);
         auto factory = Cast<AFGBuildableFactory>(nextBuilding);
 
-        auto powerIt = FPowerCheckerModule::powerConsumptionMap.find(className);
-
         // if (className == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
         // {
         //     if (FPowerCheckerModule::logInfoEnabled)
@@ -196,6 +194,9 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
         //             [100]++;
         //     }
         // }
+
+        auto powerIt = FPowerCheckerModule::powerConsumptionMap.find(className);
+
         if (powerIt != FPowerCheckerModule::powerConsumptionMap.end())
         {
             if (FPowerCheckerModule::logInfoEnabled)
