@@ -5,12 +5,12 @@
         <None Remove="**\CVS\*"/>
     </ItemGroup>
     <Target Name="PostBuild_PowerChecker" AfterTargets="Build" Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">
-        <Copy SourceFiles="..\..\Binaries\Win64\UE4-PowerChecker-Win64-Shipping.dll" DestinationFolder="C:\Games\Epic Games\SatisfactoryExperimental\mods"/>
-        <Copy SourceFiles="..\..\Binaries\Win64\UE4-PowerChecker-Win64-Shipping.pdb" DestinationFolder="C:\Games\Epic Games\SatisfactoryExperimental\mods"/>
+        <Copy SourceFiles="..\..\Binaries\Win64\UE4-PowerChecker-Win64-Shipping.dll" DestinationFolder="C:\Games\Epic Games\SatisfactoryEarlyAccess\mods"/>
+        <Copy SourceFiles="..\..\Binaries\Win64\UE4-PowerChecker-Win64-Shipping.pdb" DestinationFolder="C:\Games\Epic Games\SatisfactoryEarlyAccess\mods"/>
         <Copy SourceFiles="..\..\Binaries\Win64\UE4-PowerChecker-Win64-Shipping.dll" DestinationFolder="..\..\Mods\PowerChecker"/>
         <Copy SourceFiles="..\..\Binaries\Win64\UE4-PowerChecker-Win64-Shipping.pdb" DestinationFolder="..\..\Mods\PowerChecker"/>
         
-        <Exec Command="..\..\Source\PowerChecker\combine.cmd" />
+        <Exec Command="..\..\combine.cmd"/>
         
         <Delete Files="..\..\Mods\PowerChecker.zip"/>
         <ZipDirectory SourceDirectory="..\..\Mods\PowerChecker" DestinationFile="..\..\Mods\PowerChecker.zip"/>

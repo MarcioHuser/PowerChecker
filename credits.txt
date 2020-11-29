@@ -4,7 +4,7 @@
 Marcio Neves
 
 === UI ===
-Multiplayer banner by Deantendo#4265 (find him at Satisfactory Modding Discord server)
+Multiplayer banner and icon by Deantendo#4265 (find him at Satisfactory Modding Discord server)
 
 
 

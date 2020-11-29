@@ -70,6 +70,7 @@ public:
     virtual bool IsValidBuildable(class AFGBuildable* newBuildable);
 
     static void dumpUnknownClass(AActor* owner);
+    static bool inheritsFromClass(AActor* owner, const FString& className);
 
     inline static FString
     getTimeStamp()
