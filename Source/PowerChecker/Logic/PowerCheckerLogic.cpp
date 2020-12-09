@@ -4,16 +4,18 @@
 
 #include "FGBuildableGenerator.h"
 #include "FGBuildableRailroadStation.h"
+#include "FGBuildableTrainPlatformCargo.h"
 #include "FGCircuitSubsystem.h"
 #include "FGFactoryConnectionComponent.h"
 #include "FGGameMode.h"
 #include "FGItemDescriptor.h"
 #include "FGPowerCircuit.h"
 #include "FGPowerConnectionComponent.h"
-#include "FGRailroadSubsystem.h"
-#include "FGTrainStationIdentifier.h"
 #include "FGPowerInfoComponent.h"
-#include "FGBuildableTrainPlatformCargo.h"
+#include "FGRailroadSubsystem.h"
+#include "FGTrain.h"
+#include "FGRailroadVehicle.h"
+#include "FGTrainStationIdentifier.h"
 
 #include "SML/util/ReflectionHelper.h"
 #include "SML/util/Logging.h"
@@ -21,6 +23,10 @@
 #include "Util/Optimize.h"
 
 #include <map>
+
+
+#include "FGDropPod.h"
+#include "FGLocomotive.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
@@ -87,19 +93,19 @@ void APowerCheckerLogic::GetMaximumPotential(UFGPowerConnectionComponent* powerC
 void APowerCheckerLogic::GetMaximumPotentialWithDetails
 (UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
 {
-	TSet<AFGBuildable*> seenActors;
+	TSet<AActor*> seenActors;
 	TSet<UFGPowerConnectionComponent*> pendingConnections;
 
 	std::map<TSubclassOf<UFGItemDescriptor>, std::map<float, std::map<int, int>>> buildingDetails;
 
-	auto nextBuilding = Cast<AFGBuildable>(powerConnection->GetOwner());
+	auto nextActor = powerConnection->GetOwner();
 
-	if (nextBuilding)
+	if (nextActor)
 	{
 		pendingConnections.Add(powerConnection);
 	}
 
-	auto railroadSubsystem = AFGRailroadSubsystem::Get(nextBuilding->GetWorld());
+	auto railroadSubsystem = AFGRailroadSubsystem::Get(nextActor->GetWorld());
 	//auto circuitSubsystem = AFGCircuitSubsystem::Get(nextBuilding->GetWorld());
 
 	//auto powerCircuit = circuitSubsystem->FindCircuit<UFGPowerCircuit>(powerConnection->GetCircuitID());
@@ -113,16 +119,16 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 		powerConnection = *pendingConnections.begin();
 		pendingConnections.Remove(powerConnection);
 
-		nextBuilding = Cast<AFGBuildable>(powerConnection->GetOwner());
-		if (!nextBuilding)
+		nextActor = powerConnection->GetOwner();
+		if (!nextActor)
 		{
 			continue;
 		}
 
-		seenActors.Add(nextBuilding);
+		seenActors.Add(nextActor);
 
 		TArray<UFGPowerConnectionComponent*> powerConnections;
-		nextBuilding->GetComponents<UFGPowerConnectionComponent>(powerConnections);
+		nextActor->GetComponents<UFGPowerConnectionComponent>(powerConnections);
 
 		TArray<UFGCircuitConnectionComponent*> connections;
 
@@ -132,7 +138,7 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 			currentPowerConnection->GetHiddenConnections(connections);
 		}
 
-		auto trainStation = Cast<AFGBuildableRailroadStation>(nextBuilding);
+		auto trainStation = Cast<AFGBuildableRailroadStation>(nextActor);
 
 		// Find power connections from all other stations in the circuit
 		if (trainStation)
@@ -177,17 +183,44 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 					}
 				}
 			}
+
+			TArray<AFGTrain*> trains;
+			railroadSubsystem->GetTrains(trainStation->GetTrackGraphID(), trains);
+
+			for (auto train : trains)
+			{
+				for (auto trainIt = AFGRailroadSubsystem::TTrainIterator(train->GetFirstVehicle()); trainIt; ++trainIt)
+				{
+					// dumpUnknownClass(vehicle);
+
+					auto locomotive = Cast<AFGLocomotive>(*trainIt);
+
+					if (!locomotive || seenActors.Contains(locomotive))
+					{
+						continue;
+					}
+
+					seenActors.Add(locomotive);
+
+					auto producedPower = locomotive->GetPowerInfo()->GetMaximumTargetConsumption();
+
+					buildingDetails[UFGRecipe::GetProducts(locomotive->GetBuiltWithRecipe())[0].ItemClass]
+						[-producedPower]
+						[100]++;
+				}
+			}
 		}
 
-		auto className = nextBuilding->GetClass()->GetPathName();
-		auto buildDescriptor = nextBuilding->GetBuiltWithDescriptor();
+		auto className = nextActor->GetClass()->GetPathName();
+		auto buildable = Cast<AFGBuildable>(nextActor);
+		auto buildDescriptor = buildable ? buildable->GetBuiltWithDescriptor() : nullptr;
 
 		if (FPowerCheckerModule::logInfoEnabled)
 		{
 			SML::Logging::info(
 				*getTimeStamp(),
 				TEXT(" PowerChecker: "),
-				*nextBuilding->GetName(),
+				*nextActor->GetName(),
 				TEXT(" / "),
 				*className
 				);
@@ -201,7 +234,7 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				continue;
 			}
 
-			auto connectedBuilding = Cast<AFGBuildable>(testPowerConnection->GetOwner());
+			auto connectedBuilding = testPowerConnection->GetOwner();
 			if (!connectedBuilding || seenActors.Contains(connectedBuilding) || pendingConnections.Contains(testPowerConnection))
 			{
 				continue;
@@ -210,8 +243,9 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 			pendingConnections.Add(testPowerConnection);
 		}
 
-		auto generator = Cast<AFGBuildableGenerator>(nextBuilding);
-		auto factory = Cast<AFGBuildableFactory>(nextBuilding);
+		auto generator = Cast<AFGBuildableGenerator>(nextActor);
+		auto factory = Cast<AFGBuildableFactory>(nextActor);
+		auto dropPod = Cast<AFGDropPod>(nextActor);
 
 		// if (className == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
 		// {
@@ -370,6 +404,7 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 						TEXT("    Producing Power Consumption For Potential: "),
 						factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())
 						);
+					SML::Logging::info(*getTimeStamp(), TEXT("    Maximum Target Consumption: "), powerConnection->GetPowerInfo()->GetMaximumTargetConsumption());
 				}
 
 				totalMaximumPotential += factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential());
@@ -382,9 +417,20 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				}
 			}
 		}
+		else if (dropPod)
+		{
+			// dumpUnknownClass(dropPod);
+			// dumpUnknownClass(powerConnection);
+			// dumpUnknownClass(powerConnection->GetPowerInfo());
+			
+			if (powerConnection->GetPowerInfo()->GetTargetConsumption())
+			{
+				totalMaximumPotential += powerConnection->GetPowerInfo()->GetTargetConsumption();
+			}
+		}
 		else
 		{
-			// dumpUnknownClass(nextBuilding);
+			// dumpUnknownClass(nextActor);
 		}
 	}
 
@@ -461,18 +507,18 @@ bool APowerCheckerLogic::inheritsFromClass(AActor* owner, const FString& classNa
 	return false;
 }
 
-void APowerCheckerLogic::dumpUnknownClass(AActor* owner)
+void APowerCheckerLogic::dumpUnknownClass(UObject* obj)
 {
 	if (FPowerCheckerModule::logInfoEnabled)
 	{
-		SML::Logging::info(*getTimeStamp(), TEXT("Unknown Class "), *owner->GetClass()->GetPathName());
+		SML::Logging::info(*getTimeStamp(), TEXT("Unknown Class "), *obj->GetClass()->GetPathName());
 
-		for (auto cls = owner->GetClass()->GetSuperClass(); cls && cls != AActor::StaticClass(); cls = cls->GetSuperClass())
+		for (auto cls = obj->GetClass()->GetSuperClass(); cls && cls != AActor::StaticClass(); cls = cls->GetSuperClass())
 		{
 			SML::Logging::info(*getTimeStamp(), TEXT("    - Super: "), *cls->GetPathName());
 		}
 
-		for (TFieldIterator<UProperty> property(owner->GetClass()); property; ++property)
+		for (TFieldIterator<UProperty> property(obj->GetClass()); property; ++property)
 		{
 			SML::Logging::info(
 				*getTimeStamp(),
@@ -488,25 +534,25 @@ void APowerCheckerLogic::dumpUnknownClass(AActor* owner)
 			auto floatProperty = Cast<UFloatProperty>(*property);
 			if (floatProperty)
 			{
-				SML::Logging::info(*getTimeStamp(), TEXT("        = "), floatProperty->GetPropertyValue_InContainer(owner));
+				SML::Logging::info(*getTimeStamp(), TEXT("        = "), floatProperty->GetPropertyValue_InContainer(obj));
 			}
 
 			auto intProperty = Cast<UIntProperty>(*property);
 			if (intProperty)
 			{
-				SML::Logging::info(*getTimeStamp(), TEXT("        = "), intProperty->GetPropertyValue_InContainer(owner));
+				SML::Logging::info(*getTimeStamp(), TEXT("        = "), intProperty->GetPropertyValue_InContainer(obj));
 			}
 
 			auto boolProperty = Cast<UBoolProperty>(*property);
 			if (boolProperty)
 			{
-				SML::Logging::info(*getTimeStamp(), TEXT("        = "), boolProperty->GetPropertyValue_InContainer(owner) ? TEXT("true") : TEXT("false"));
+				SML::Logging::info(*getTimeStamp(), TEXT("        = "), boolProperty->GetPropertyValue_InContainer(obj) ? TEXT("true") : TEXT("false"));
 			}
 
 			auto structProperty = Cast<UStructProperty>(*property);
 			if (structProperty && property->GetName() == TEXT("mFactoryTickFunction"))
 			{
-				auto factoryTick = structProperty->ContainerPtrToValuePtr<FFactoryTickFunction>(owner);
+				auto factoryTick = structProperty->ContainerPtrToValuePtr<FFactoryTickFunction>(obj);
 				if (factoryTick)
 				{
 					SML::Logging::info(*getTimeStamp(), TEXT("    - Tick Interval = "), factoryTick->TickInterval);
@@ -516,7 +562,7 @@ void APowerCheckerLogic::dumpUnknownClass(AActor* owner)
 			auto strProperty = Cast<UStrProperty>(*property);
 			if (strProperty)
 			{
-				SML::Logging::info(*getTimeStamp(), TEXT("        = "), *strProperty->GetPropertyValue_InContainer(owner));
+				SML::Logging::info(*getTimeStamp(), TEXT("        = "), *strProperty->GetPropertyValue_InContainer(obj));
 			}
 		}
 	}

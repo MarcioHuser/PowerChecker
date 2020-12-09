@@ -22,5 +22,6 @@ public:
     static bool logInfoEnabled;
     static float maximumPlayerDistance;
     static float spareLimit;
+    static float overflowBlinkCycle;
     static std::map<FString, float> powerConsumptionMap;
 };

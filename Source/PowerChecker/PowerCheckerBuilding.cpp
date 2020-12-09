@@ -2,6 +2,7 @@
 
 #include "FGPowerCircuit.h"
 #include "FGPowerInfoComponent.h"
+#include "FGProductionIndicatorInstanceComponent.h"
 #include "GeneratedCodeHelpers.h"
 #include "PowerCheckerModule.h"
 #include "PowerCheckerRCO.h"
@@ -101,6 +102,8 @@ void APowerCheckerBuilding::Server_TriggerUpdateValues(bool updateMaximumPotenti
 		APowerCheckerLogic::GetMaximumPotentialWithDetails(powerConnection, calculatedMaximumPotential, withDetails, powerDetails);
 	}
 
+	isOverflow = circuitStats.PowerProductionCapacity > 0 && circuitStats.PowerProductionCapacity < calculatedMaximumPotential;
+
 	if (circuitStats.PowerProductionCapacity == 0 || circuitStats.PowerProductionCapacity < calculatedMaximumPotential)
 	{
 		productionStatus = EProductionStatus::IS_ERROR;
@@ -185,7 +188,11 @@ EProductionStatus APowerCheckerBuilding::GetProductionIndicatorStatus() const
 	//     return EProductionStatus::IS_ERROR;
 	// }
 
-	return productionStatus;
+	return productionStatus == EProductionStatus::IS_ERROR &&
+	       isOverflow &&
+	       (int)(GetWorld()->GetTimeSeconds() / (FPowerCheckerModule::overflowBlinkCycle / 2)) % 2 == 0
+		       ? EProductionStatus::IS_NONE
+		       : productionStatus;
 }
 
 bool APowerCheckerBuilding::ValidateTick(int testCircuitId)
@@ -239,6 +246,7 @@ void APowerCheckerBuilding::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APowerCheckerBuilding, productionStatus);
+	DOREPLIFETIME(APowerCheckerBuilding, isOverflow);
 	DOREPLIFETIME(APowerCheckerBuilding, currentCircuitId);
 	DOREPLIFETIME(APowerCheckerBuilding, calculatedMaximumPotential);
 }

@@ -11,6 +11,7 @@
 bool FPowerCheckerModule::logInfoEnabled = false;
 float FPowerCheckerModule::maximumPlayerDistance = 4000;
 float FPowerCheckerModule::spareLimit = 100;
+float FPowerCheckerModule::overflowBlinkCycle = 1;
 std::map<FString, float> FPowerCheckerModule::powerConsumptionMap;
 
 void FPowerCheckerModule::StartupModule()
@@ -25,6 +26,7 @@ void FPowerCheckerModule::StartupModule()
     defaultValues->SetBoolField(TEXT("logInfoEnabled"), logInfoEnabled);
     defaultValues->SetNumberField(TEXT("maximumPlayerDistance"), maximumPlayerDistance);
     defaultValues->SetNumberField(TEXT("spareLimit"), spareLimit);
+    defaultValues->SetNumberField(TEXT("overflowBlinkCycle"), overflowBlinkCycle);
     defaultValues->SetObjectField(TEXT("powerMapping"), powerMappingJson);
 
     defaultValues = SML::ReadModConfig(TEXT("PowerChecker"), defaultValues);
@@ -32,6 +34,7 @@ void FPowerCheckerModule::StartupModule()
     logInfoEnabled = defaultValues->GetBoolField(TEXT("logInfoEnabled"));
     maximumPlayerDistance = defaultValues->GetNumberField(TEXT("maximumPlayerDistance"));
     spareLimit = defaultValues->GetNumberField(TEXT("spareLimit"));
+    overflowBlinkCycle = defaultValues->GetNumberField(TEXT("overflowBlinkCycle"));
     powerMappingJson = defaultValues->GetObjectField(TEXT("powerMapping"));
 
     SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: logInfoEnabled = "), logInfoEnabled ? TEXT("true") : TEXT("false"));

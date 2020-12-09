@@ -110,6 +110,9 @@ public:
 	EProductionStatus productionStatus = EProductionStatus::IS_NONE;
 
 	UPROPERTY(BlueprintReadWrite, Replicated)
+	bool isOverflow = false;
+
+	UPROPERTY(BlueprintReadWrite, Replicated)
 	int currentCircuitId = 0;
 
 	UPROPERTY(BlueprintReadWrite, Replicated)

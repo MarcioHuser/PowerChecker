@@ -69,7 +69,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
     virtual bool IsValidBuildable(class AFGBuildable* newBuildable);
 
-    static void dumpUnknownClass(AActor* owner);
+    static void dumpUnknownClass(UObject* obj);
     static bool inheritsFromClass(AActor* owner, const FString& className);
 
     inline static FString
