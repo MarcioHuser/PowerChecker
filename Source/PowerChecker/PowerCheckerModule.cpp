@@ -1,5 +1,10 @@
-﻿#include "PowerCheckerModule.h"
+﻿#include "PowerCheckerBuilding.h"
+#include "PowerCheckerModule.h"
 
+#include "FGPowerCircuit.h"
+#include "Logic/PowerCheckerLogic.h"
+
+#include "mod/hooking.h"
 #include "util/Logging.h"
 
 #include "Util/Optimize.h"
@@ -16,46 +21,67 @@ std::map<FString, float> FPowerCheckerModule::powerConsumptionMap;
 
 void FPowerCheckerModule::StartupModule()
 {
-    SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: StartupModule"));
+	SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: StartupModule"));
 
-    TSharedRef<FJsonObject> defaultValues(new FJsonObject());
+	TSharedRef<FJsonObject> defaultValues(new FJsonObject());
 
-    TSharedPtr<FJsonObject> powerMappingJson(new FJsonObject());
-    powerMappingJson->SetNumberField(TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"), -20);
+	TSharedPtr<FJsonObject> powerMappingJson(new FJsonObject());
+	powerMappingJson->SetNumberField(TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"), -20);
 
-    defaultValues->SetBoolField(TEXT("logInfoEnabled"), logInfoEnabled);
-    defaultValues->SetNumberField(TEXT("maximumPlayerDistance"), maximumPlayerDistance);
-    defaultValues->SetNumberField(TEXT("spareLimit"), spareLimit);
-    defaultValues->SetNumberField(TEXT("overflowBlinkCycle"), overflowBlinkCycle);
-    defaultValues->SetObjectField(TEXT("powerMapping"), powerMappingJson);
+	defaultValues->SetBoolField(TEXT("logInfoEnabled"), logInfoEnabled);
+	defaultValues->SetNumberField(TEXT("maximumPlayerDistance"), maximumPlayerDistance);
+	defaultValues->SetNumberField(TEXT("spareLimit"), spareLimit);
+	defaultValues->SetNumberField(TEXT("overflowBlinkCycle"), overflowBlinkCycle);
+	defaultValues->SetObjectField(TEXT("powerMapping"), powerMappingJson);
 
-    defaultValues = SML::ReadModConfig(TEXT("PowerChecker"), defaultValues);
+	defaultValues = SML::ReadModConfig(TEXT("PowerChecker"), defaultValues);
 
-    logInfoEnabled = defaultValues->GetBoolField(TEXT("logInfoEnabled"));
-    maximumPlayerDistance = defaultValues->GetNumberField(TEXT("maximumPlayerDistance"));
-    spareLimit = defaultValues->GetNumberField(TEXT("spareLimit"));
-    overflowBlinkCycle = defaultValues->GetNumberField(TEXT("overflowBlinkCycle"));
-    powerMappingJson = defaultValues->GetObjectField(TEXT("powerMapping"));
+	logInfoEnabled = defaultValues->GetBoolField(TEXT("logInfoEnabled"));
+	maximumPlayerDistance = defaultValues->GetNumberField(TEXT("maximumPlayerDistance"));
+	spareLimit = defaultValues->GetNumberField(TEXT("spareLimit"));
+	overflowBlinkCycle = defaultValues->GetNumberField(TEXT("overflowBlinkCycle"));
+	powerMappingJson = defaultValues->GetObjectField(TEXT("powerMapping"));
 
-    SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: logInfoEnabled = "), logInfoEnabled ? TEXT("true") : TEXT("false"));
-    SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: maximumPlayerDistance = "), maximumPlayerDistance);
-    SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: spareLimit = "), spareLimit);
-    SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: powerMapping:"));
+	SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: logInfoEnabled = "), logInfoEnabled ? TEXT("true") : TEXT("false"));
+	SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: maximumPlayerDistance = "), maximumPlayerDistance);
+	SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: spareLimit = "), spareLimit);
+	SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker: powerMapping:"));
 
-    if(powerMappingJson)
-    {
-        for (auto entry : powerMappingJson->Values)
-        {
-            auto key = entry.Key;
-            auto value = entry.Value->AsNumber();
-            
-            powerConsumptionMap[key] =  value;
+	if (powerMappingJson)
+	{
+		for (auto entry : powerMappingJson->Values)
+		{
+			auto key = entry.Key;
+			auto value = entry.Value->AsNumber();
 
-            SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker:     - "), *key, TEXT(" = "), value);
-        }
-    }
+			powerConsumptionMap[key] = value;
 
-    SML::Logging::info(*getTimeStamp(), TEXT(" ==="));
+			SML::Logging::info(*getTimeStamp(), TEXT(" PowerChecker:     - "), *key, TEXT(" = "), value);
+		}
+	}
+
+	SUBSCRIBE_VIRTUAL_FUNCTION_AFTER(UFGPowerCircuit, UFGPowerCircuit::OnCircuitChanged, FPowerCheckerModule::onPowerCircuitChangedHook)
+
+	SML::Logging::info(*getTimeStamp(), TEXT(" ==="));
+}
+
+void FPowerCheckerModule::onPowerCircuitChangedHook(UFGPowerCircuit* powerCircuit)
+{
+	if (!APowerCheckerLogic::singleton)
+	{
+		return;
+	}
+
+	auto circuitId = powerCircuit->GetCircuitID();
+
+	FScopeLock ScopeLock(&APowerCheckerLogic::singleton->eclCritical);
+	for (auto powerChecker : APowerCheckerLogic::singleton->allPowerCheckers)
+	{
+		if (circuitId == powerChecker->getCircuitId())
+		{
+			powerChecker->TriggerUpdateValues(true);
+		}
+	}
 }
 
 IMPLEMENT_GAME_MODULE(FPowerCheckerModule, PowerChecker);

@@ -88,11 +88,17 @@ public:
     FCriticalSection eclCritical;
 
     TSet<class AFGBuildable*> allTeleporters;
+    TSet<class APowerCheckerBuilding*> allPowerCheckers;
 
     FActorEndPlaySignature::FDelegate removeTeleporterDelegate;
+    FActorEndPlaySignature::FDelegate removePowerCheckerDelegate;
 
-    virtual void addTeleporter(AFGBuildable* actor);
+    virtual void addTeleporter(class AFGBuildable* actor);
+    virtual void addPowerChecker(class APowerCheckerBuilding* actor);
 
     UFUNCTION()
     virtual void removeTeleporter(AActor* actor, EEndPlayReason::Type reason);
+    
+    UFUNCTION()
+    virtual void removePowerChecker(AActor* actor, EEndPlayReason::Type reason);
 };

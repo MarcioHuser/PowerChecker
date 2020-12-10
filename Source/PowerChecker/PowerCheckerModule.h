@@ -5,11 +5,15 @@
 
 #include <map>
 
+#include "FGPowerCircuit.h"
+
 class FPowerCheckerModule: public FDefaultGameModuleImpl {
 public:
     virtual void StartupModule() override;
 
     virtual bool IsGameModule() const override { return true; }
+
+    static void onPowerCircuitChangedHook(UFGPowerCircuit* powerCircuit);
 
     inline static FString
     getTimeStamp()

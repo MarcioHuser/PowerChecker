@@ -56,6 +56,7 @@ void APowerCheckerLogic::Initialize()
 		UGameplayStatics::GetAllActorsOfClass(subsystem->GetWorld(), AFGBuildable::StaticClass(), allBuildables);
 
 		removeTeleporterDelegate.BindDynamic(this, &APowerCheckerLogic::removeTeleporter);
+		removePowerCheckerDelegate.BindDynamic(this, &APowerCheckerLogic::removePowerChecker);
 
 		for (auto buildableActor : allBuildables)
 		{
@@ -94,32 +95,18 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 (UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
 {
 	TSet<AActor*> seenActors;
-	TSet<UFGPowerConnectionComponent*> pendingConnections;
-
 	std::map<TSubclassOf<UFGItemDescriptor>, std::map<float, std::map<int, int>>> buildingDetails;
 
-	auto nextActor = powerConnection->GetOwner();
-
-	if (nextActor)
-	{
-		pendingConnections.Add(powerConnection);
-	}
-
-	auto railroadSubsystem = AFGRailroadSubsystem::Get(nextActor->GetWorld());
-	//auto circuitSubsystem = AFGCircuitSubsystem::Get(nextBuilding->GetWorld());
-
-	//auto powerCircuit = circuitSubsystem->FindCircuit<UFGPowerCircuit>(powerConnection->GetCircuitID());
+	auto railroadSubsystem = AFGRailroadSubsystem::Get(powerConnection->GetWorld());
+	auto powerCircuit = powerConnection->GetPowerCircuit();
 
 	totalMaximumPotential = 0;
 
 	bool teleporterFound = false;
 
-	while (pendingConnections.Num())
+	for (auto powerInfo : powerCircuit->mPowerInfos)
 	{
-		powerConnection = *pendingConnections.begin();
-		pendingConnections.Remove(powerConnection);
-
-		nextActor = powerConnection->GetOwner();
+		auto nextActor = powerInfo->GetOwner();
 		if (!nextActor)
 		{
 			continue;
@@ -127,21 +114,45 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 
 		seenActors.Add(nextActor);
 
-		TArray<UFGPowerConnectionComponent*> powerConnections;
-		nextActor->GetComponents<UFGPowerConnectionComponent>(powerConnections);
+		auto className = nextActor->GetClass()->GetPathName();
+		auto buildable = Cast<AFGBuildable>(nextActor);
+		auto buildDescriptor = buildable ? buildable->GetBuiltWithDescriptor() : nullptr;
 
-		TArray<UFGCircuitConnectionComponent*> connections;
-
-		for (auto currentPowerConnection : powerConnections)
+		if (FPowerCheckerModule::logInfoEnabled)
 		{
-			currentPowerConnection->GetConnections(connections);
-			currentPowerConnection->GetHiddenConnections(connections);
+			SML::Logging::info(
+				*getTimeStamp(),
+				TEXT(" PowerChecker: "),
+				*nextActor->GetName(),
+				TEXT(" / "),
+				*className
+				);
 		}
 
-		auto trainStation = Cast<AFGBuildableRailroadStation>(nextActor);
+		auto powerIt = FPowerCheckerModule::powerConsumptionMap.find(className);
 
-		// Find power connections from all other stations in the circuit
-		if (trainStation)
+		if (powerIt != FPowerCheckerModule::powerConsumptionMap.end())
+		{
+			if (FPowerCheckerModule::logInfoEnabled)
+			{
+				SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), powerIt->second);
+			}
+
+			if (powerIt->second < 0)
+			{
+				totalMaximumPotential -= powerIt->second;
+			}
+
+			if (buildDescriptor && includePowerDetails)
+			{
+				auto factory = Cast<AFGBuildableFactory>(nextActor);
+
+				buildingDetails[buildDescriptor]
+					[powerIt->second]
+					[factory ? factory->GetPendingPotential() : 100]++;
+			}
+		}
+		else if (auto trainStation = Cast<AFGBuildableRailroadStation>(nextActor))
 		{
 			TArray<AFGTrainStationIdentifier*> stations;
 			railroadSubsystem->GetTrainStations(trainStation->GetTrackGraphID(), stations);
@@ -152,10 +163,6 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				{
 					continue;
 				}
-
-				station->GetStation()->GetComponents<UFGPowerConnectionComponent>(powerConnections);
-
-				connections.Append(powerConnections);
 
 				if (includePowerDetails)
 				{
@@ -210,78 +217,6 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				}
 			}
 		}
-
-		auto className = nextActor->GetClass()->GetPathName();
-		auto buildable = Cast<AFGBuildable>(nextActor);
-		auto buildDescriptor = buildable ? buildable->GetBuiltWithDescriptor() : nullptr;
-
-		if (FPowerCheckerModule::logInfoEnabled)
-		{
-			SML::Logging::info(
-				*getTimeStamp(),
-				TEXT(" PowerChecker: "),
-				*nextActor->GetName(),
-				TEXT(" / "),
-				*className
-				);
-		}
-
-		for (auto connection : connections)
-		{
-			auto testPowerConnection = Cast<UFGPowerConnectionComponent>(connection);
-			if (!testPowerConnection)
-			{
-				continue;
-			}
-
-			auto connectedBuilding = testPowerConnection->GetOwner();
-			if (!connectedBuilding || seenActors.Contains(connectedBuilding) || pendingConnections.Contains(testPowerConnection))
-			{
-				continue;
-			}
-
-			pendingConnections.Add(testPowerConnection);
-		}
-
-		auto generator = Cast<AFGBuildableGenerator>(nextActor);
-		auto factory = Cast<AFGBuildableFactory>(nextActor);
-		auto dropPod = Cast<AFGDropPod>(nextActor);
-
-		// if (className == TEXT("/Game/Teleporter/buildable/Build_Teleporteur.Build_Teleporteur_C"))
-		// {
-		//     if (FPowerCheckerModule::logInfoEnabled)
-		//     {
-		//         SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: 20"));
-		//     }
-		//
-		//     totalMaximumPotential += 20;
-		//
-		//     if (buildDescriptor && includePowerDetails)
-		//     {
-		//         buildingDetails[buildDescriptor]
-		//             [-20]
-		//             [100]++;
-		//     }
-		// }
-
-		auto powerIt = FPowerCheckerModule::powerConsumptionMap.find(className);
-
-		if (powerIt != FPowerCheckerModule::powerConsumptionMap.end())
-		{
-			if (FPowerCheckerModule::logInfoEnabled)
-			{
-				SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), powerIt->second);
-			}
-
-			totalMaximumPotential += powerIt->second;
-
-			if (buildDescriptor && includePowerDetails)
-			{
-				buildingDetails[buildDescriptor]
-					[powerIt->second]
-					[factory ? factory->GetPendingPotential() : 100]++;
-			}
-		}
 		else if (className == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
 		{
 			if (!teleporterFound)
@@ -333,7 +268,17 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				}
 			}
 		}
-		else if (generator)
+		else if (auto dropPod = Cast<AFGDropPod>(nextActor))
+		{
+			// dumpUnknownClass(dropPod);
+			// dumpUnknownClass(powerInfo);
+
+			if (powerInfo->GetTargetConsumption())
+			{
+				totalMaximumPotential += powerInfo->GetTargetConsumption();
+			}
+		}
+		else if (auto generator = Cast<AFGBuildableGenerator>(nextActor))
 		{
 			if (FPowerCheckerModule::logInfoEnabled)
 			{
@@ -347,15 +292,15 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 					TEXT("    Producing Power Production Capacity For Potential: "),
 					generator->CalcPowerProductionCapacityForPotential(generator->GetPendingPotential())
 					);
-				SML::Logging::info(*getTimeStamp(), TEXT("    Base Production: "), powerConnection->GetPowerInfo()->GetBaseProduction());
-				SML::Logging::info(*getTimeStamp(), TEXT("    Bynamic Production Capacity: "), powerConnection->GetPowerInfo()->GetDynamicProductionCapacity());
+				SML::Logging::info(*getTimeStamp(), TEXT("    Base Production: "), powerInfo->GetBaseProduction());
+				SML::Logging::info(*getTimeStamp(), TEXT("    Bynamic Production Capacity: "), powerInfo->GetDynamicProductionCapacity());
 			}
 
-			auto producedPower = powerConnection->GetPowerInfo()->GetBaseProduction();
+			auto producedPower = powerInfo->GetBaseProduction();
 			if (!producedPower)
 			{
 				//producedPower = generator->CalcPowerProductionCapacityForPotential(generator->GetPendingPotential());
-				producedPower = powerConnection->GetPowerInfo()->GetDynamicProductionCapacity();
+				producedPower = powerInfo->GetDynamicProductionCapacity();
 			}
 
 			if (!generator->IsProductionPaused() && producedPower && buildDescriptor && includePowerDetails)
@@ -390,7 +335,7 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				// }
 			}
 		}
-		else if (factory)
+		else if (auto factory = Cast<AFGBuildableFactory>(nextActor))
 		{
 			if (!factory->IsProductionPaused() && factory->IsConfigured() && factory->GetDefaultProducingPowerConsumption())
 			{
@@ -404,7 +349,7 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 						TEXT("    Producing Power Consumption For Potential: "),
 						factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())
 						);
-					SML::Logging::info(*getTimeStamp(), TEXT("    Maximum Target Consumption: "), powerConnection->GetPowerInfo()->GetMaximumTargetConsumption());
+					SML::Logging::info(*getTimeStamp(), TEXT("    Maximum Target Consumption: "), powerInfo->GetMaximumTargetConsumption());
 				}
 
 				totalMaximumPotential += factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential());
@@ -415,17 +360,6 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 						[-factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())]
 						[int(0.5 + factory->GetPendingPotential() * 100)]++;
 				}
-			}
-		}
-		else if (dropPod)
-		{
-			// dumpUnknownClass(dropPod);
-			// dumpUnknownClass(powerConnection);
-			// dumpUnknownClass(powerConnection->GetPowerInfo());
-			
-			if (powerConnection->GetPowerInfo()->GetTargetConsumption())
-			{
-				totalMaximumPotential += powerConnection->GetPowerInfo()->GetTargetConsumption();
 			}
 		}
 		else
@@ -568,14 +502,6 @@ void APowerCheckerLogic::dumpUnknownClass(UObject* obj)
 	}
 }
 
-void APowerCheckerLogic::removeTeleporter(AActor* actor, EEndPlayReason::Type reason)
-{
-	FScopeLock ScopeLock(&eclCritical);
-	allTeleporters.Remove(Cast<AFGBuildable>(actor));
-
-	actor->OnEndPlay.Remove(removeTeleporterDelegate);
-}
-
 bool APowerCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 {
 	if (!newBuildable)
@@ -586,11 +512,17 @@ bool APowerCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	if (newBuildable->GetClass()->GetPathName() == TEXT("/Game/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"))
 	{
 		addTeleporter(newBuildable);
-
-		return true;
+	}
+	else if (auto powerChecker = Cast<APowerCheckerBuilding>(newBuildable))
+	{
+		addPowerChecker(powerChecker);
+	}
+	else
+	{
+		return false;
 	}
 
-	return false;
+	return true;
 }
 
 void APowerCheckerLogic::addTeleporter(AFGBuildable* teleporter)
@@ -599,4 +531,28 @@ void APowerCheckerLogic::addTeleporter(AFGBuildable* teleporter)
 	allTeleporters.Add(teleporter);
 
 	teleporter->OnEndPlay.Add(removeTeleporterDelegate);
+}
+
+void APowerCheckerLogic::removeTeleporter(AActor* actor, EEndPlayReason::Type reason)
+{
+	FScopeLock ScopeLock(&eclCritical);
+	allTeleporters.Remove(Cast<AFGBuildable>(actor));
+
+	actor->OnEndPlay.Remove(removeTeleporterDelegate);
+}
+
+void APowerCheckerLogic::addPowerChecker(APowerCheckerBuilding* powerChecker)
+{
+	FScopeLock ScopeLock(&eclCritical);
+	allPowerCheckers.Add(powerChecker);
+
+	powerChecker->OnEndPlay.Add(removePowerCheckerDelegate);
+}
+
+void APowerCheckerLogic::removePowerChecker(AActor* actor, EEndPlayReason::Type reason)
+{
+	FScopeLock ScopeLock(&eclCritical);
+	allPowerCheckers.Remove(Cast<APowerCheckerBuilding>(actor));
+
+	actor->OnEndPlay.Remove(removePowerCheckerDelegate);
 }
