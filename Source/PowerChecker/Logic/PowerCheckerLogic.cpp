@@ -102,6 +102,11 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 
 	totalMaximumPotential = 0;
 
+	if (!powerCircuit)
+	{
+		return;
+	}
+
 	bool teleporterFound = false;
 
 	for (auto powerInfo : powerCircuit->mPowerInfos)

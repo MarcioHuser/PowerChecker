@@ -1,5 +1,5 @@
-﻿#include "PowerCheckerBuilding.h"
-#include "PowerCheckerModule.h"
+﻿#include "PowerCheckerModule.h"
+#include "PowerCheckerBuilding.h"
 
 #include "FGPowerCircuit.h"
 #include "Logic/PowerCheckerLogic.h"
