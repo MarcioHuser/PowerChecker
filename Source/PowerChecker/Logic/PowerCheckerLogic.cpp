@@ -25,6 +25,7 @@
 #include <map>
 
 
+#include "FGBuildablePowerPole.h"
 #include "FGDropPod.h"
 #include "FGLocomotive.h"
 
@@ -91,8 +92,7 @@ void APowerCheckerLogic::GetMaximumPotential(UFGPowerConnectionComponent* powerC
 	GetMaximumPotentialWithDetails(powerConnection, totalMaximumPotential, false, powerDetails);
 }
 
-void APowerCheckerLogic::GetMaximumPotentialWithDetails
-(UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
+void APowerCheckerLogic::GetMaximumPotentialWithDetails(UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
 {
 	TSet<AActor*> seenActors;
 	std::map<TSubclassOf<UFGItemDescriptor>, std::map<float, std::map<int, int>>> buildingDetails;
@@ -112,7 +112,7 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 	for (auto powerInfo : powerCircuit->mPowerInfos)
 	{
 		auto nextActor = powerInfo->GetOwner();
-		if (!nextActor)
+		if (!nextActor || seenActors.Contains(nextActor) || Cast<AFGBuildablePowerPole>(nextActor) || Cast<APowerCheckerBuilding>(nextActor))
 		{
 			continue;
 		}
@@ -157,71 +157,72 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 					[factory ? factory->GetPendingPotential() : 100]++;
 			}
 		}
-		else if (auto trainStation = Cast<AFGBuildableRailroadStation>(nextActor))
-		{
-			TArray<AFGTrainStationIdentifier*> stations;
-			railroadSubsystem->GetTrainStations(trainStation->GetTrackGraphID(), stations);
-
-			for (auto station : stations)
+			/*else if (auto trainStation = Cast<AFGBuildableRailroadStation>(nextActor))
 			{
-				if (!station || !station->GetStation() || seenActors.Contains(station->GetStation()))
-				{
-					continue;
-				}
-
+				totalMaximumPotential += powerInfo->GetMaximumTargetConsumption();
+	
 				if (includePowerDetails)
 				{
-					// Add all connected cargo platforms
-
-					for (auto d = 0; d < 2; d++)
+					buildingDetails[trainStation->GetBuiltWithDescriptor()]
+						[-powerInfo->GetMaximumTargetConsumption()]
+						[100]++;
+				}
+	
+				// Add all connected cargo platforms
+	
+				for (auto d = 0; d < 2; d++)
+				{
+					for (auto nextPlatform = trainStation->GetConnectedPlatformInDirectionOf(d);
+					     nextPlatform;
+					     nextPlatform = nextPlatform->GetConnectedPlatformInDirectionOf(d))
 					{
-						for (auto nextPlatform = station->GetStation()->GetConnectedPlatformInDirectionOf(d);
-						     nextPlatform;
-						     nextPlatform = nextPlatform->GetConnectedPlatformInDirectionOf(d))
+						auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(nextPlatform);
+						if (!cargoPlatform || seenActors.Contains(cargoPlatform))
 						{
-							auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(nextPlatform);
-
-							if (!cargoPlatform || seenActors.Contains(cargoPlatform))
-							{
-								continue;
-							}
-
-							seenActors.Add(cargoPlatform);
-
+							continue;
+						}
+	
+						seenActors.Add(cargoPlatform);
+	
+						totalMaximumPotential += cargoPlatform->GetPowerInfo()->GetMaximumTargetConsumption();
+	
+						if (includePowerDetails)
+						{
 							buildingDetails[cargoPlatform->GetBuiltWithDescriptor()]
-								[-cargoPlatform->CalcProducingPowerConsumptionForPotential(cargoPlatform->GetPendingPotential())]
-								[int(0.5 + cargoPlatform->GetPendingPotential() * 100)]++;
+								[-cargoPlatform->GetPowerInfo()->GetMaximumTargetConsumption()]
+								[100]++;
 						}
 					}
 				}
-			}
-
-			TArray<AFGTrain*> trains;
-			railroadSubsystem->GetTrains(trainStation->GetTrackGraphID(), trains);
-
-			for (auto train : trains)
-			{
-				for (auto trainIt = AFGRailroadSubsystem::TTrainIterator(train->GetFirstVehicle()); trainIt; ++trainIt)
+	
+				TArray<AFGTrain*> trains;
+				railroadSubsystem->GetTrains(trainStation->GetTrackGraphID(), trains);
+	
+				for (auto train : trains)
 				{
-					// dumpUnknownClass(vehicle);
-
-					auto locomotive = Cast<AFGLocomotive>(*trainIt);
-
-					if (!locomotive || seenActors.Contains(locomotive))
+					for (auto trainIt = AFGRailroadSubsystem::TTrainIterator(train->GetFirstVehicle()); trainIt; ++trainIt)
 					{
-						continue;
+						// dumpUnknownClass(vehicle);
+	
+						auto locomotive = Cast<AFGLocomotive>(*trainIt);
+						if (!locomotive || seenActors.Contains(locomotive))
+						{
+							continue;
+						}
+	
+						seenActors.Add(locomotive);
+	
+						totalMaximumPotential += locomotive->GetPowerInfo()->GetMaximumTargetConsumption();
+	
+						if (includePowerDetails)
+						{
+							buildingDetails[UFGRecipe::GetProducts(locomotive->GetBuiltWithRecipe())[0].ItemClass]
+								[-locomotive->GetPowerInfo()->GetMaximumTargetConsumption()]
+								[100]++;
+						}
 					}
-
-					seenActors.Add(locomotive);
-
-					auto producedPower = locomotive->GetPowerInfo()->GetMaximumTargetConsumption();
-
-					buildingDetails[UFGRecipe::GetProducts(locomotive->GetBuiltWithRecipe())[0].ItemClass]
-						[-producedPower]
-						[100]++;
 				}
-			}
-		}
+			}*/
 		else if (className == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
 		{
 			if (!teleporterFound)
@@ -271,6 +272,17 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 						[-1]
 						[100]++;
 				}
+			}
+		}
+		else if (auto locomotive = Cast<AFGLocomotive>(nextActor))
+		{
+			totalMaximumPotential += locomotive->GetPowerInfo()->GetMaximumTargetConsumption();
+
+			if (includePowerDetails)
+			{
+				buildingDetails[UFGRecipe::GetProducts(locomotive->GetBuiltWithRecipe())[0].ItemClass]
+					[-locomotive->GetPowerInfo()->GetMaximumTargetConsumption()]
+					[100]++;
 			}
 		}
 		else if (auto dropPod = Cast<AFGDropPod>(nextActor))
@@ -369,6 +381,15 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 		}
 		else
 		{
+			if (FPowerCheckerModule::logInfoEnabled)
+			{
+				SML::Logging::info(
+                    *getTimeStamp(),
+                    TEXT(" PowerChecker: Unknown "),
+                    *className
+                    );
+			}
+			
 			// dumpUnknownClass(nextActor);
 		}
 	}
