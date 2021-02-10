@@ -34,16 +34,19 @@
 #endif
 
 APowerCheckerLogic* APowerCheckerLogic::singleton = nullptr;
+TSubclassOf<class UFGItemDescriptor> APowerCheckerLogic::dropPodStub = nullptr;
 
 APowerCheckerLogic::APowerCheckerLogic()
 {
 }
 
-void APowerCheckerLogic::Initialize()
+void APowerCheckerLogic::Initialize(TSubclassOf<UFGItemDescriptor> in_dropPodStub)
 {
 	singleton = this;
 
 	auto subsystem = AFGBuildableSubsystem::Get(this);
+
+	dropPodStub = in_dropPodStub;
 
 	if (subsystem)
 	{
@@ -92,7 +95,8 @@ void APowerCheckerLogic::GetMaximumPotential(UFGPowerConnectionComponent* powerC
 	GetMaximumPotentialWithDetails(powerConnection, totalMaximumPotential, false, powerDetails);
 }
 
-void APowerCheckerLogic::GetMaximumPotentialWithDetails(UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
+void APowerCheckerLogic::GetMaximumPotentialWithDetails
+(UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
 {
 	TSet<AActor*> seenActors;
 	std::map<TSubclassOf<UFGItemDescriptor>, std::map<float, std::map<int, int>>> buildingDetails;
@@ -292,7 +296,19 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails(UFGPowerConnectionCompon
 
 			if (powerInfo->GetTargetConsumption())
 			{
+				if (FPowerCheckerModule::logInfoEnabled)
+				{
+					SML::Logging::info(*getTimeStamp(), TEXT("    Target Consumption: "), powerInfo->GetTargetConsumption());
+				}
+
 				totalMaximumPotential += powerInfo->GetTargetConsumption();
+
+				if (includePowerDetails && dropPodStub)
+				{
+					buildingDetails[dropPodStub]
+						[-powerInfo->GetTargetConsumption()]
+						[100]++;
+				}
 			}
 		}
 		else if (auto generator = Cast<AFGBuildableGenerator>(nextActor))
@@ -384,12 +400,12 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails(UFGPowerConnectionCompon
 			if (FPowerCheckerModule::logInfoEnabled)
 			{
 				SML::Logging::info(
-                    *getTimeStamp(),
-                    TEXT(" PowerChecker: Unknown "),
-                    *className
-                    );
+					*getTimeStamp(),
+					TEXT(" PowerChecker: Unknown "),
+					*className
+					);
 			}
-			
+
 			// dumpUnknownClass(nextActor);
 		}
 	}

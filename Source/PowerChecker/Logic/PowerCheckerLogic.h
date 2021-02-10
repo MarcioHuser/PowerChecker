@@ -61,7 +61,7 @@ public:
     static float GetSpareLimit();
 
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
-    virtual void Initialize();
+    virtual void Initialize(TSubclassOf<class UFGItemDescriptor> in_dropPodStub);
 
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
     virtual void Terminate();
@@ -84,6 +84,8 @@ public:
     virtual void OnFGBuildableSubsystemBuildableConstructed(AFGBuildable* buildable);
 
     static APowerCheckerLogic* singleton;
+
+    static TSubclassOf<class UFGItemDescriptor> dropPodStub;
 
     FCriticalSection eclCritical;
 
