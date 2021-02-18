@@ -4,7 +4,7 @@
 #include "PowerCheckerBuilding.h"
 #include "PowerCheckerRCO.generated.h"
 
-UCLASS()
+UCLASS(Blueprintable)
 class POWERCHECKER_API UPowerCheckerRCO : public UFGRemoteCallObject
 {
 	GENERATED_BODY()
@@ -20,9 +20,18 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO",DisplayName="SetCalculatedMaximumPotential")
-    virtual void TriggerUpdateValues(class APowerCheckerBuilding* powerChecker, bool updateMaximumPotential = false, bool withDetails = false);
-	
+	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO", DisplayName="SetIncludePaused")
+	virtual void SetIncludePaused(class APowerCheckerBuilding* powerChecker, bool includePaused = true);
+
+	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO", DisplayName="SetCalculatedMaximumPotential")
+	virtual void TriggerUpdateValues(class APowerCheckerBuilding* powerChecker, bool updateMaximumPotential = false, bool withDetails = false);
+
+	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO")
+	virtual void SetProductionPaused(class AFGBuildableFactory* factory, bool isProductionPaused);
+
+	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO")
+	virtual void SetPendingPotential(class AFGBuildableFactory* factory, float pendingPotential);
+
 	UPROPERTY(Replicated)
 	bool dummy = true;
 };

@@ -62,6 +62,32 @@ void APowerCheckerBuilding::Tick(float DeltaSeconds)
 	}
 }
 
+void APowerCheckerBuilding::SetIncludePaused(bool includePaused)
+{
+	if (HasAuthority())
+	{
+		Server_SetIncludePaused(includePaused);
+	}
+	else
+	{
+		auto rco = UPowerCheckerRCO::getRCO(GetWorld());
+		if (rco)
+		{
+			if (FPowerCheckerModule::logInfoEnabled)
+			{
+				SML::Logging::info(*getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
+			}
+
+			rco->SetIncludePaused(this, includePaused);
+		}
+	}
+}
+
+void APowerCheckerBuilding::Server_SetIncludePaused(bool includePaused)
+{
+	this->includePaused = includePaused;
+}
+
 void APowerCheckerBuilding::TriggerUpdateValues(bool updateMaximumPotential, bool withDetails)
 {
 	if (HasAuthority())
@@ -99,7 +125,7 @@ void APowerCheckerBuilding::Server_TriggerUpdateValues(bool updateMaximumPotenti
 
 	if (updateMaximumPotential)
 	{
-		APowerCheckerLogic::GetMaximumPotentialWithDetails(powerConnection, calculatedMaximumPotential, withDetails, powerDetails);
+		APowerCheckerLogic::GetMaximumPotentialWithDetails(powerConnection, calculatedMaximumPotential, includePaused, withDetails, powerDetails);
 	}
 
 	isOverflow = circuitStats.PowerProductionCapacity > 0 && circuitStats.PowerProductionCapacity < calculatedMaximumPotential;
@@ -249,6 +275,7 @@ void APowerCheckerBuilding::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(APowerCheckerBuilding, isOverflow);
 	DOREPLIFETIME(APowerCheckerBuilding, currentCircuitId);
 	DOREPLIFETIME(APowerCheckerBuilding, calculatedMaximumPotential);
+	DOREPLIFETIME(APowerCheckerBuilding, includePaused);
 }
 
 int APowerCheckerBuilding::getCircuitId()

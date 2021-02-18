@@ -13,7 +13,7 @@ can run your factory at 100% without tripping the fuse.
 <br/>
 <br/>
 
-Find me at <a href="https://discord.gg/Q8nM4G">Satisfactory Modding</a> Discord server (MarcioHuser#2377)
+Find me at <a href="https://discord.gg/A9bFvkbav4">Satisfactory Modding</a> Discord server (MarcioHuser#2377)
 
 <br/>
 <br/>
@@ -21,18 +21,18 @@ Find me at <a href="https://discord.gg/Q8nM4G">Satisfactory Modding</a> Discord 
 <h3>What it includes:</h3>
 A building with a screen that shows:
 <ul>
-	<li>How much power can be generated at the circuit;</li>
-	<li>How much power is currently being consumed;</li>
-	<li>The maximum amount of power the circuit will consume if everything runs at the same time;</li>
-	<li>How much power you have to spare at the circuit.</li>
-	<li>When interacted it will show a popup with the same stats, plus a list of all the generators and consumers of the circuit, grouped by:
-		<ul>
-			<li>Type</li>
-			<li>Power generated/consumed</li>
-			<li>Overclock</li>
-		</ul>
-		It will also show the sum of consumed/generated power of each building group
-	</li>
+    <li>How much power can be generated at the circuit;</li>
+    <li>How much power is currently being consumed;</li>
+    <li>The maximum amount of power the circuit will consume if everything runs at the same time;</li>
+    <li>How much power you have to spare at the circuit.</li>
+    <li>When interacted it will show a popup with the same stats, plus a list of all the generators and consumers of the circuit, grouped by:
+        <ul>
+            <li>Type</li>
+            <li>Power generated/consumed</li>
+            <li>Overclock</li>
+        </ul>
+        It will also show the sum of consumed/generated power of each building group
+    </li>
 </ul>
 
 
@@ -42,10 +42,10 @@ A building with a screen that shows:
 <h3>How dows it work:</h3>
 The screen and the power light will change color according to the given statuses:
 <ul>
-	<li>If the maximum amount is greater than the maximum capacity, the panel will show red and the power light will blink with red color.
-		It will also show red if no power is available;</li>
-	<li>If the spare power is lower than a given limit, the panel and the power light will show yellow;</li>
-	<li>Otherwise, the screen will be black and the power light will be green</li>
+    <li>If the maximum amount is greater than the maximum capacity, the panel will show red and the power light will blink with red color.
+        It will also show red if no power is available;</li>
+    <li>If the spare power is lower than a given limit, the panel and the power light will show yellow;</li>
+    <li>Otherwise, the screen will be black and the power light will be green</li>
 </ul>
 
 <br/>
@@ -55,42 +55,53 @@ The screen and the power light will change color according to the given statuses
 <br/>
 
 ### Changelog
+- Version 0.0.9
+    - Features
+        - New report by group of machines: for each machine on the group, it will list their:
+            - internal name;
+            - the current recipe (if applicable);
+            - the current overclock setting (if applicable);
+            - its pause state			
+        - Added the capability to remote pause/unpause a machine connected to the same power circuit, and change its overclocking settings
+            (limited by the amount of shards the machine already had. It will not auto add/remove any shard on the machine)
+        - Added and option to define if the Power Checker panel will ignore or not paused machines for its calculations and reports
+
 - Version 0.0.8
-	- Fix
-		- Crash Pods now show up at the list of consumers, when they require power
+    - Fix
+        - Crash Pods now show up at the list of consumers, when they require power
 
 - Version 0.0.7
-	- Fix
-		- Fixed Train Cargo Platforms to be wrongly added multiple times
+    - Fix
+        - Fixed Train Cargo Platforms to be wrongly added multiple times
 
 - Version 0.0.6
-	- Fix
-		- Fixed a crash that will happen if you have a disconnected PowerChecker on your save (or when you place down a new one) 
+    - Fix
+        - Fixed a crash that will happen if you have a disconnected PowerChecker on your save (or when you place down a new one) 
 
 - Version 0.0.5
-	- Features
-		- Included locomotives and maximum power they can drain, into Consumers list
-		- Included support to powered crash pods as Consumers (they will not show at the popup windows, though, but their consumption will be accounted)
-	- Optimization
-		- General code optimizations
+    - Features
+        - Included locomotives and maximum power they can drain, into Consumers list
+        - Included support to powered crash pods as Consumers (they will not show at the popup windows, though, but their consumption will be accounted)
+    - Optimization
+        - General code optimizations
 
 - Version 0.0.4
-	- Feture
-		- Added support for the Refined Power converters
-	- Fix
-		- Fixed multiplayer compatibility. Stats will be shown again for clients as well as it is for hosts
-		- Fixed train cargo platforms not being computed
+    - Feture
+        - Added support for the Refined Power converters
+    - Fix
+        - Fixed multiplayer compatibility. Stats will be shown again for clients as well as it is for hosts
+        - Fixed train cargo platforms not being computed
 
 - Version 0.0.3
-	- Fix
-		- Fixed multiplayer crash
+    - Fix
+        - Fixed multiplayer crash
 
 - Version 0.0.2
-	- Fix
-		- Fixed the list of generators and consumers not being filled
+    - Fix
+        - Fixed the list of generators and consumers not being filled
 
 - Version 0.0.1
-	- Initial release
+    - Initial release
 
 <br/>
 <br/>

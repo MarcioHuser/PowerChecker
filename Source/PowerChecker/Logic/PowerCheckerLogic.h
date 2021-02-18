@@ -24,6 +24,9 @@ public:
     UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="PowerCheckerLogic|PowerDetail")
     int amount = 0;
 
+    UPROPERTY(EditAnywhere,BlueprintReadWrite, Category="PowerCheckerLogic|PowerDetail")
+    TArray<class AFGBuildableFactory*> factories;
+
 public:
     FORCEINLINE ~FPowerDetail() = default;
 };
@@ -39,7 +42,8 @@ public:
     static void GetMaximumPotential
     (
         UFGPowerConnectionComponent* powerConnection,
-        float& totalMaximumPotential
+        float& totalMaximumPotential,
+        bool includePaused
     );
 
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
@@ -47,6 +51,7 @@ public:
     (
         UFGPowerConnectionComponent* powerConnection,
         float& totalMaximumPotential,
+        bool includePaused,
         bool includePowerDetails,
         TArray<FPowerDetail>& outPowerDetails
     );

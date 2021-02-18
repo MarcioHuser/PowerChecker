@@ -60,6 +60,10 @@ public:
 	virtual void TriggerUpdateValues(bool updateMaximumPotential = false, bool withDetails = false);
 	virtual void Server_TriggerUpdateValues(bool updateMaximumPotential = false, bool withDetails = false);
 
+	UFUNCTION(BlueprintCallable, Category="PowerChecker", DisplayName="SetIncludePaused")
+	virtual void SetIncludePaused(bool includePaused = true);
+	virtual void Server_SetIncludePaused(bool includePaused = true);
+
 	UPROPERTY(BlueprintAssignable, Category = "PowerChecker")
 	FUpdateValues OnUpdateValues;
 
@@ -117,6 +121,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Replicated)
 	float calculatedMaximumPotential = 0;
+
+	UPROPERTY(BlueprintReadWrite, Replicated, SaveGame)
+	bool includePaused = true;
 
 	float lastCheck = 0;
 };

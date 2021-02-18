@@ -25,6 +25,19 @@ UPowerCheckerRCO* UPowerCheckerRCO::getRCO(UWorld* world)
 		);
 }
 
+void UPowerCheckerRCO::SetIncludePaused_Implementation(APowerCheckerBuilding* powerChecker, bool includePaused)
+{
+	if (powerChecker->HasAuthority())
+	{
+		powerChecker->Server_SetIncludePaused(includePaused);
+	}
+}
+
+bool UPowerCheckerRCO::SetIncludePaused_Validate(APowerCheckerBuilding* powerChecker, bool includePaused)
+{
+	return true;
+}
+
 void UPowerCheckerRCO::TriggerUpdateValues_Implementation(APowerCheckerBuilding* powerChecker, bool updateMaximumPotential, bool withDetails)
 {
 	if (powerChecker->HasAuthority())
@@ -34,6 +47,32 @@ void UPowerCheckerRCO::TriggerUpdateValues_Implementation(APowerCheckerBuilding*
 }
 
 bool UPowerCheckerRCO::TriggerUpdateValues_Validate(APowerCheckerBuilding* powerChecker, bool updateMaximumPotential, bool withDetails)
+{
+	return true;
+}
+
+void UPowerCheckerRCO::SetProductionPaused_Implementation(class AFGBuildableFactory* factory, bool isProductionPaused)
+{
+	if (factory->HasAuthority())
+	{
+		factory->SetIsProductionPaused(isProductionPaused);
+	}
+}
+
+bool UPowerCheckerRCO::SetProductionPaused_Validate(class AFGBuildableFactory* factory, bool productionIsPaused)
+{
+	return true;
+}
+
+void UPowerCheckerRCO::SetPendingPotential_Implementation(class AFGBuildableFactory* factory, float pendingPotential)
+{
+	if (factory->HasAuthority())
+	{
+		factory->SetPendingPotential(pendingPotential);
+	}
+}
+
+bool UPowerCheckerRCO::SetPendingPotential_Validate(class AFGBuildableFactory* factory, float pendingPotential)
 {
 	return true;
 }
