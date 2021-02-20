@@ -57,12 +57,16 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintCallable, Category="PowerChecker", DisplayName="TriggerUpdateValues")
-	virtual void TriggerUpdateValues(bool updateMaximumPotential = false, bool withDetails = false);
-	virtual void Server_TriggerUpdateValues(bool updateMaximumPotential = false, bool withDetails = false);
+	virtual void TriggerUpdateValues(bool updateMaximumPotential = false, bool withDetails = false, PowerCheckerFilterType filterType = PowerCheckerFilterType::Any);
+	virtual void Server_TriggerUpdateValues(bool updateMaximumPotential = false, bool withDetails = false, PowerCheckerFilterType filterType = PowerCheckerFilterType::Any);
 
 	UFUNCTION(BlueprintCallable, Category="PowerChecker", DisplayName="SetIncludePaused")
 	virtual void SetIncludePaused(bool includePaused = true);
 	virtual void Server_SetIncludePaused(bool includePaused = true);
+
+	UFUNCTION(BlueprintCallable, Category="PowerChecker", DisplayName="SetIncludeOutOfFuel")
+	virtual void SetIncludeOutOfFuel(bool includeOutOfFuel = true);
+	virtual void Server_SetIncludeOutOfFuel(bool includeOutOfFuel = true);
 
 	UPROPERTY(BlueprintAssignable, Category = "PowerChecker")
 	FUpdateValues OnUpdateValues;
@@ -124,6 +128,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Replicated, SaveGame)
 	bool includePaused = true;
+
+	UPROPERTY(BlueprintReadWrite, Replicated, SaveGame)
+	bool includeOutOfFuel = true;
 
 	float lastCheck = 0;
 };

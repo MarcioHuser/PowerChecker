@@ -23,8 +23,17 @@ public:
 	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO", DisplayName="SetIncludePaused")
 	virtual void SetIncludePaused(class APowerCheckerBuilding* powerChecker, bool includePaused = true);
 
+	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO", DisplayName="SetIncludeOutOfFuel")
+	virtual void SetIncludeOutOfFuel(class APowerCheckerBuilding* powerChecker, bool includeOutOfFuel = true);
+
 	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO", DisplayName="SetCalculatedMaximumPotential")
-	virtual void TriggerUpdateValues(class APowerCheckerBuilding* powerChecker, bool updateMaximumPotential = false, bool withDetails = false);
+	virtual void TriggerUpdateValues
+	(
+		class APowerCheckerBuilding* powerChecker,
+		bool updateMaximumPotential = false,
+		bool withDetails = false,
+		PowerCheckerFilterType filterType = PowerCheckerFilterType::Any
+	);
 
 	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="PowerCheckerRCO")
 	virtual void SetProductionPaused(class AFGBuildableFactory* factory, bool isProductionPaused);

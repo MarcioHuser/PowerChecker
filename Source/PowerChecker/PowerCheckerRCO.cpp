@@ -38,15 +38,28 @@ bool UPowerCheckerRCO::SetIncludePaused_Validate(APowerCheckerBuilding* powerChe
 	return true;
 }
 
-void UPowerCheckerRCO::TriggerUpdateValues_Implementation(APowerCheckerBuilding* powerChecker, bool updateMaximumPotential, bool withDetails)
+void UPowerCheckerRCO::SetIncludeOutOfFuel_Implementation(APowerCheckerBuilding* powerChecker, bool includeOutOfFuel)
 {
 	if (powerChecker->HasAuthority())
 	{
-		powerChecker->Server_TriggerUpdateValues(updateMaximumPotential, withDetails);
+		powerChecker->Server_SetIncludeOutOfFuel(includeOutOfFuel);
 	}
 }
 
-bool UPowerCheckerRCO::TriggerUpdateValues_Validate(APowerCheckerBuilding* powerChecker, bool updateMaximumPotential, bool withDetails)
+bool UPowerCheckerRCO::SetIncludeOutOfFuel_Validate(APowerCheckerBuilding* powerChecker, bool includeOutOfFuel)
+{
+	return true;
+}
+
+void UPowerCheckerRCO::TriggerUpdateValues_Implementation(APowerCheckerBuilding* powerChecker, bool updateMaximumPotential, bool withDetails, PowerCheckerFilterType filterType)
+{
+	if (powerChecker->HasAuthority())
+	{
+		powerChecker->Server_TriggerUpdateValues(updateMaximumPotential, withDetails, filterType);
+	}
+}
+
+bool UPowerCheckerRCO::TriggerUpdateValues_Validate(APowerCheckerBuilding* powerChecker, bool updateMaximumPotential, bool withDetails, PowerCheckerFilterType filterType)
 {
 	return true;
 }

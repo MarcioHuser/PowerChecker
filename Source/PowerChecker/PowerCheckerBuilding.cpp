@@ -88,11 +88,11 @@ void APowerCheckerBuilding::Server_SetIncludePaused(bool includePaused)
 	this->includePaused = includePaused;
 }
 
-void APowerCheckerBuilding::TriggerUpdateValues(bool updateMaximumPotential, bool withDetails)
+void APowerCheckerBuilding::SetIncludeOutOfFuel(bool includeOutOfFuel)
 {
 	if (HasAuthority())
 	{
-		Server_TriggerUpdateValues(updateMaximumPotential, withDetails);
+		Server_SetIncludeOutOfFuel(includeOutOfFuel);
 	}
 	else
 	{
@@ -104,12 +104,38 @@ void APowerCheckerBuilding::TriggerUpdateValues(bool updateMaximumPotential, boo
 				SML::Logging::info(*getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
 			}
 
-			rco->TriggerUpdateValues(this, updateMaximumPotential, withDetails);
+			rco->SetIncludeOutOfFuel(this, includeOutOfFuel);
 		}
 	}
 }
 
-void APowerCheckerBuilding::Server_TriggerUpdateValues(bool updateMaximumPotential, bool withDetails)
+void APowerCheckerBuilding::Server_SetIncludeOutOfFuel(bool includeOutOfFuel)
+{
+	this->includeOutOfFuel = includeOutOfFuel;
+}
+
+void APowerCheckerBuilding::TriggerUpdateValues(bool updateMaximumPotential, bool withDetails, PowerCheckerFilterType filterType)
+{
+	if (HasAuthority())
+	{
+		Server_TriggerUpdateValues(updateMaximumPotential, withDetails, filterType);
+	}
+	else
+	{
+		auto rco = UPowerCheckerRCO::getRCO(GetWorld());
+		if (rco)
+		{
+			if (FPowerCheckerModule::logInfoEnabled)
+			{
+				SML::Logging::info(*getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
+			}
+
+			rco->TriggerUpdateValues(this, updateMaximumPotential, withDetails, filterType);
+		}
+	}
+}
+
+void APowerCheckerBuilding::Server_TriggerUpdateValues(bool updateMaximumPotential, bool withDetails, PowerCheckerFilterType filterType)
 {
 	auto powerConnection = FindComponentByClass<UFGPowerConnectionComponent>();
 
@@ -125,7 +151,12 @@ void APowerCheckerBuilding::Server_TriggerUpdateValues(bool updateMaximumPotenti
 
 	if (updateMaximumPotential)
 	{
-		APowerCheckerLogic::GetMaximumPotentialWithDetails(powerConnection, calculatedMaximumPotential, includePaused, withDetails, powerDetails);
+		APowerCheckerLogic::GetMaximumPotentialWithDetails(powerConnection, calculatedMaximumPotential, includePaused, includeOutOfFuel, withDetails, powerDetails, filterType);
+	}
+	else if (filterType != PowerCheckerFilterType::Any)
+	{
+		float _dummyValue;
+		APowerCheckerLogic::GetMaximumPotentialWithDetails(powerConnection, _dummyValue, includePaused, includeOutOfFuel, withDetails, powerDetails, filterType);
 	}
 
 	isOverflow = circuitStats.PowerProductionCapacity > 0 && circuitStats.PowerProductionCapacity < calculatedMaximumPotential;
@@ -276,6 +307,7 @@ void APowerCheckerBuilding::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(APowerCheckerBuilding, currentCircuitId);
 	DOREPLIFETIME(APowerCheckerBuilding, calculatedMaximumPotential);
 	DOREPLIFETIME(APowerCheckerBuilding, includePaused);
+	DOREPLIFETIME(APowerCheckerBuilding, includeOutOfFuel);
 }
 
 int APowerCheckerBuilding::getCircuitId()

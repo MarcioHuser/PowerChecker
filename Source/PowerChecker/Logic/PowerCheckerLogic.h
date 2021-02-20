@@ -6,6 +6,14 @@
 
 #include "PowerCheckerLogic.generated.h"
 
+UENUM(BlueprintType)
+enum class PowerCheckerFilterType : uint8
+{
+    Any,
+    PausedOnly,
+    OutOfFuelOnly
+};
+
 USTRUCT(Blueprintable)
 struct POWERCHECKER_API FPowerDetail
 {
@@ -43,7 +51,9 @@ public:
     (
         UFGPowerConnectionComponent* powerConnection,
         float& totalMaximumPotential,
-        bool includePaused
+        bool includePaused,
+        bool includeOutOfFuel,
+        PowerCheckerFilterType filterType
     );
 
     UFUNCTION(BlueprintCallable, Category="PowerCheckerLogic")
@@ -52,8 +62,10 @@ public:
         UFGPowerConnectionComponent* powerConnection,
         float& totalMaximumPotential,
         bool includePaused,
+        bool includeOutOfFuel,
         bool includePowerDetails,
-        TArray<FPowerDetail>& outPowerDetails
+        TArray<FPowerDetail>& outPowerDetails,
+        PowerCheckerFilterType filterType
     );
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category="PowerCheckerLogic")

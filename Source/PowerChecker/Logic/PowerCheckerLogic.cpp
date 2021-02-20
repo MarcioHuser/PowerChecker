@@ -88,15 +88,38 @@ void APowerCheckerLogic::Terminate()
 	singleton = nullptr;
 }
 
-void APowerCheckerLogic::GetMaximumPotential(UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePaused)
+void APowerCheckerLogic::GetMaximumPotential
+(
+	UFGPowerConnectionComponent* powerConnection,
+	float& totalMaximumPotential,
+	bool includePaused,
+	bool includeOutOfFuel,
+	PowerCheckerFilterType filterType
+)
 {
 	TArray<FPowerDetail> powerDetails;
 
-	GetMaximumPotentialWithDetails(powerConnection, totalMaximumPotential, includePaused, false, powerDetails);
+	GetMaximumPotentialWithDetails(
+		powerConnection,
+		totalMaximumPotential,
+		includePaused,
+		includeOutOfFuel,
+		false,
+		powerDetails,
+		filterType
+		);
 }
 
 void APowerCheckerLogic::GetMaximumPotentialWithDetails
-(UFGPowerConnectionComponent* powerConnection, float& totalMaximumPotential, bool includePaused, bool includePowerDetails, TArray<FPowerDetail>& outPowerDetails)
+(
+	UFGPowerConnectionComponent* powerConnection,
+	float& totalMaximumPotential,
+	bool includePaused,
+	bool includeOutOfFuel,
+	bool includePowerDetails,
+	TArray<FPowerDetail>& outPowerDetails,
+	PowerCheckerFilterType filterType
+)
 {
 	TSet<AActor*> seenActors;
 	std::map<TSubclassOf<UFGItemDescriptor>, std::map<float, std::map<int, FPowerDetail>>> buildingDetails;
@@ -110,8 +133,6 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 	{
 		return;
 	}
-
-	bool teleporterFound = false;
 
 	for (auto powerInfo : powerCircuit->mPowerInfos)
 	{
@@ -127,6 +148,9 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 		auto buildable = Cast<AFGBuildable>(nextActor);
 		auto buildDescriptor = buildable ? buildable->GetBuiltWithDescriptor() : nullptr;
 
+		auto generator = Cast<AFGBuildableGenerator>(nextActor);
+		auto factory = Cast<AFGBuildableFactory>(nextActor);
+
 		if (FPowerCheckerModule::logInfoEnabled)
 		{
 			SML::Logging::info(
@@ -136,157 +160,41 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				TEXT(" / "),
 				*className
 				);
+
+			SML::Logging::info(*getTimeStamp(), TEXT("    Base Production: "), powerInfo->GetBaseProduction());
+			SML::Logging::info(*getTimeStamp(), TEXT("    Dynamic Production Capacity: "), powerInfo->GetDynamicProductionCapacity());
+			SML::Logging::info(*getTimeStamp(), TEXT("    Target Consumption: "), powerInfo->GetTargetConsumption());
 		}
 
-		auto powerIt = FPowerCheckerModule::powerConsumptionMap.find(className);
-
-		if (powerIt != FPowerCheckerModule::powerConsumptionMap.end())
+		/*if (className == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
 		{
-			if (FPowerCheckerModule::logInfoEnabled)
+			if (filterType != PowerCheckerFilterType::Any)
 			{
-				SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), powerIt->second);
+				continue;
 			}
 
-			if (powerIt->second < 0)
+			totalMaximumPotential += powerInfo->GetTargetConsumption();
+
+			if (FPowerCheckerModule::logInfoEnabled)
 			{
-				totalMaximumPotential -= powerIt->second;
+				SML::Logging::info(*getTimeStamp(), TEXT("    Item Teleporter Power Comsumption: "), powerInfo->GetTargetConsumption());
 			}
 
 			if (buildDescriptor && includePowerDetails)
 			{
-				auto factory = Cast<AFGBuildableFactory>(nextActor);
-
-				auto& detail = buildingDetails[buildDescriptor]
-					[powerIt->second]
-					[factory ? factory->GetPendingPotential() : 100];
-
-				detail.amount++;
-
-				if (factory)
-				{
-					detail.factories.Add(factory);
-				}
+				buildingDetails[buildDescriptor]
+					[-powerInfo->GetTargetConsumption()]
+					[100].amount++;
 			}
 		}
-			/*else if (auto trainStation = Cast<AFGBuildableRailroadStation>(nextActor))
-			{
-				totalMaximumPotential += powerInfo->GetMaximumTargetConsumption();
-	
-				if (includePowerDetails)
-				{
-					buildingDetails[trainStation->GetBuiltWithDescriptor()]
-						[-powerInfo->GetMaximumTargetConsumption()]
-						[100].amount++;
-				}
-	
-				// Add all connected cargo platforms
-	
-				for (auto d = 0; d < 2; d++)
-				{
-					for (auto nextPlatform = trainStation->GetConnectedPlatformInDirectionOf(d);
-					     nextPlatform;
-					     nextPlatform = nextPlatform->GetConnectedPlatformInDirectionOf(d))
-					{
-						auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(nextPlatform);
-						if (!cargoPlatform || seenActors.Contains(cargoPlatform))
-						{
-							continue;
-						}
-	
-						seenActors.Add(cargoPlatform);
-	
-						totalMaximumPotential += cargoPlatform->GetPowerInfo()->GetMaximumTargetConsumption();
-	
-						if (includePowerDetails)
-						{
-							buildingDetails[cargoPlatform->GetBuiltWithDescriptor()]
-								[-cargoPlatform->GetPowerInfo()->GetMaximumTargetConsumption()]
-								[100].amount++;
-						}
-					}
-				}
-	
-				TArray<AFGTrain*> trains;
-				railroadSubsystem->GetTrains(trainStation->GetTrackGraphID(), trains);
-	
-				for (auto train : trains)
-				{
-					for (auto trainIt = AFGRailroadSubsystem::TTrainIterator(train->GetFirstVehicle()); trainIt; ++trainIt)
-					{
-						// dumpUnknownClass(vehicle);
-	
-						auto locomotive = Cast<AFGLocomotive>(*trainIt);
-						if (!locomotive || seenActors.Contains(locomotive))
-						{
-							continue;
-						}
-	
-						seenActors.Add(locomotive);
-	
-						totalMaximumPotential += locomotive->GetPowerInfo()->GetMaximumTargetConsumption();
-	
-						if (includePowerDetails)
-						{
-							buildingDetails[UFGRecipe::GetProducts(locomotive->GetBuiltWithRecipe())[0].ItemClass]
-								[-locomotive->GetPowerInfo()->GetMaximumTargetConsumption()]
-								[100].amount++;
-						}
-					}
-				}
-			}*/
-		else if (className == TEXT("/Game/StorageTeleporter/Buildables/Hub/Build_STHub.Build_STHub_C"))
+		else*/
+		if (auto locomotive = Cast<AFGLocomotive>(nextActor))
 		{
-			if (!teleporterFound)
+			if (filterType != PowerCheckerFilterType::Any)
 			{
-				teleporterFound = true;
-
-				FScopeLock ScopeLock(&singleton->eclCritical);
-
-				float itemTeleporterPower = 1;
-
-				if (FPowerCheckerModule::logInfoEnabled)
-				{
-					SML::Logging::info(*getTimeStamp(), TEXT("    Hub Power Comsumption: 1"));
-				}
-
-				for (auto teleporter : singleton->allTeleporters)
-				{
-					TArray<UFGFactoryConnectionComponent*> teleportConnections;
-					teleporter->GetComponents(teleportConnections);
-
-					for (auto connection : teleportConnections)
-					{
-						if (connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
-						{
-							if (FPowerCheckerModule::logInfoEnabled)
-							{
-								SML::Logging::info(*getTimeStamp(), TEXT("    Teleporter "), *teleporter->GetPathName(), TEXT(" has output connection. Consumption: 10"));
-							}
-
-							itemTeleporterPower += 10;
-
-							if (buildDescriptor && includePowerDetails)
-							{
-								buildingDetails[teleporter->GetBuiltWithDescriptor()]
-									[-10]
-									[100].amount++;
-							}
-						}
-					}
-				}
-
-				totalMaximumPotential += itemTeleporterPower;
-
-				if (buildDescriptor && includePowerDetails)
-				{
-					buildingDetails[buildDescriptor]
-						[-1]
-						[100].amount++;
-				}
+				continue;
 			}
-		}
-		else if (auto locomotive = Cast<AFGLocomotive>(nextActor))
-		{
+
 			totalMaximumPotential += locomotive->GetPowerInfo()->GetMaximumTargetConsumption();
 
 			if (includePowerDetails)
@@ -298,6 +206,11 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 		}
 		else if (auto dropPod = Cast<AFGDropPod>(nextActor))
 		{
+			if (filterType != PowerCheckerFilterType::Any)
+			{
+				continue;
+			}
+
 			// dumpUnknownClass(dropPod);
 			// dumpUnknownClass(powerInfo);
 
@@ -318,25 +231,23 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				}
 			}
 		}
-		else if (auto generator = Cast<AFGBuildableGenerator>(nextActor))
+		else if (generator || powerInfo->GetDynamicProductionCapacity())
 		{
 			if (FPowerCheckerModule::logInfoEnabled)
 			{
-				SML::Logging::info(*getTimeStamp(), TEXT("    Can Produce: "), generator->CanProduce() ? TEXT("true") : TEXT("false"));
-				SML::Logging::info(*getTimeStamp(), TEXT("    Load: "), generator->GetLoadPercentage(), TEXT("%"));
-				SML::Logging::info(*getTimeStamp(), TEXT("    Power Production: "), generator->GetPowerProductionCapacity());
-				SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Production: "), generator->GetDefaultPowerProductionCapacity());
-				SML::Logging::info(*getTimeStamp(), TEXT("    Pending Potential: "), generator->GetPendingPotential());
+				SML::Logging::info(*getTimeStamp(), TEXT("    Can Produce: "), (generator && generator->CanProduce()) ? TEXT("true") : TEXT("false"));
+				SML::Logging::info(*getTimeStamp(), TEXT("    Load: "), generator ? generator->GetLoadPercentage() : 0, TEXT("%"));
+				SML::Logging::info(*getTimeStamp(), TEXT("    Power Production: "), generator ? generator->GetPowerProductionCapacity() : 0);
+				SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Production: "), generator ? generator->GetDefaultPowerProductionCapacity() : 0);
+				SML::Logging::info(*getTimeStamp(), TEXT("    Pending Potential: "), generator ? generator->GetPendingPotential() : 0);
 				SML::Logging::info(
 					*getTimeStamp(),
 					TEXT("    Producing Power Production Capacity For Potential: "),
-					generator->CalcPowerProductionCapacityForPotential(generator->GetPendingPotential())
+					generator ? generator->CalcPowerProductionCapacityForPotential(generator->GetPendingPotential()) : 0
 					);
-				SML::Logging::info(*getTimeStamp(), TEXT("    Base Production: "), powerInfo->GetBaseProduction());
-				SML::Logging::info(*getTimeStamp(), TEXT("    Dynamic Production Capacity: "), powerInfo->GetDynamicProductionCapacity());
 			}
 
-			auto producedPower = generator->GetPowerProductionCapacity();
+			auto producedPower = generator ? generator->GetPowerProductionCapacity() : 0;
 			if (!producedPower)
 			{
 				producedPower = powerInfo->GetBaseProduction();
@@ -347,69 +258,96 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 				}
 			}
 
-			if ((!generator->IsProductionPaused() || includePaused) && producedPower && buildDescriptor && includePowerDetails)
-			{
-				// if (generator && inheritsFromClass(nextBuilding, TEXT("/Script/RefinedPower.RPMPPlatform")))
-				// {
-				// 	auto generatorPlacement = FReflectionHelper::GetObjectPropertyValue<URPMPPlacementComponent>(nextBuilding, TEXT("GeneratorPlacement"));
-				// 	if (!generatorPlacement)
-				// 	{
-				// 		continue;
-				// 	}
-				// 	
-				// 	auto attachedBuilding = Cast<AFGBuildable>(generatorPlacement->mAttachedBuilding);
-				// 	if (!generatorPlacement->mAttachedBuilding)
-				// 	{
-				// 		continue;
-				// 	}
-				// 	
-				// 	auto maxPowerOutput = FReflectionHelper::GetPropertyValue<UFloatProperty>(attachedBuilding, TEXT("mMaxPowerOutput"));
-				// 	
-				// 	buildingDetails[attachedBuilding->GetBuiltWithDescriptor()]
-				// 		[maxPowerOutput]
-				// 		[100].amount++;
-				//
-				// 	dumpUnknownClass(nextBuilding);
-				// } else {
+			auto includeDetails = producedPower && buildDescriptor && includePowerDetails;
 
+			if (includeDetails)
+			{
+				switch (filterType)
+				{
+				case PowerCheckerFilterType::PausedOnly:
+					includeDetails &= generator && generator->IsProductionPaused();
+					break;
+
+				case PowerCheckerFilterType::OutOfFuelOnly:
+					includeDetails &= generator && !generator->CanStartPowerProduction() && !powerInfo->GetBaseProduction();
+					break;
+
+				default:
+					includeDetails &= (includePaused || generator && !generator->IsProductionPaused()) &&
+						(includeOutOfFuel || generator && generator->CanStartPowerProduction() || powerInfo->GetBaseProduction());
+					break;
+				}
+			}
+
+			if (includeDetails)
+			{
 				auto& detail = buildingDetails[buildDescriptor]
 					[producedPower]
-					[int(0.5 + generator->GetPendingPotential() * 100)];
+					[int(0.5 + (generator ? generator->GetPendingPotential() : 1) * 100)];
 
 				detail.amount++;
-				detail.factories.Add(generator);
 
-				// }
+				if (generator)
+				{
+					detail.factories.Add(generator);
+				}
 			}
 		}
-		else if (auto factory = Cast<AFGBuildableFactory>(nextActor))
+		else if (factory || powerInfo->GetTargetConsumption())
 		{
-			if (factory->IsConfigured() && factory->GetDefaultProducingPowerConsumption())
+			if (!factory || factory->IsConfigured() && factory->GetProducingPowerConsumption())
 			{
 				if (FPowerCheckerModule::logInfoEnabled)
 				{
-					SML::Logging::info(*getTimeStamp(), TEXT("    Power Comsumption: "), factory->GetProducingPowerConsumption());
-					SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), factory->GetDefaultProducingPowerConsumption());
-					SML::Logging::info(*getTimeStamp(), TEXT("    Pending Potential: "), factory->GetPendingPotential());
+					SML::Logging::info(*getTimeStamp(), TEXT("    Power Comsumption: "), factory ? factory->GetProducingPowerConsumption() : 0);
+					SML::Logging::info(*getTimeStamp(), TEXT("    Default Power Comsumption: "), factory ? factory->GetDefaultProducingPowerConsumption() : 0);
+					SML::Logging::info(*getTimeStamp(), TEXT("    Pending Potential: "), factory ? factory->GetPendingPotential() : 0);
 					SML::Logging::info(
 						*getTimeStamp(),
 						TEXT("    Producing Power Consumption For Potential: "),
-						factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())
+						factory ? factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential()) : 0
 						);
 					SML::Logging::info(*getTimeStamp(), TEXT("    Maximum Target Consumption: "), powerInfo->GetMaximumTargetConsumption());
 				}
 
-				if (!factory->IsProductionPaused() || includePaused)
+				auto maxComsumption = FMath::Max(
+					factory ? factory->GetProducingPowerConsumption() : 0,
+					powerInfo->GetTargetConsumption()
+					);
+
+				if (includePaused || !factory || !factory->IsProductionPaused())
 				{
-					totalMaximumPotential += factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential());
+					totalMaximumPotential += maxComsumption;
+				}
 
-					if (buildDescriptor && includePowerDetails)
+				auto includeDetails = (includePaused || !factory || factory && !factory->IsProductionPaused()) && buildDescriptor && includePowerDetails;
+
+				if (includeDetails)
+				{
+					switch (filterType)
 					{
-						auto& detail = buildingDetails[buildDescriptor]
-							[-factory->CalcProducingPowerConsumptionForPotential(factory->GetPendingPotential())]
-							[int(0.5 + factory->GetPendingPotential() * 100)];
+					case PowerCheckerFilterType::PausedOnly:
+						includeDetails &= factory && factory->IsProductionPaused();
+						break;
 
-						detail.amount++;
+					case PowerCheckerFilterType::OutOfFuelOnly:
+						includeDetails = false;
+						break;
+
+					default:
+						break;
+					}
+				}
+
+				if (includeDetails)
+				{
+					auto& detail = buildingDetails[buildDescriptor]
+						[-maxComsumption]
+						[int(0.5 + (factory ? factory->GetPendingPotential() : 1) * 100)];
+
+					detail.amount++;
+					if (factory)
+					{
 						detail.factories.Add(factory);
 					}
 				}
@@ -432,6 +370,8 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 
 	if (includePowerDetails)
 	{
+		auto owner = powerConnection->GetOwner();
+
 		for (auto itBuilding = buildingDetails.begin(); itBuilding != buildingDetails.end(); itBuilding++)
 		{
 			for (auto itPower = itBuilding->second.begin(); itPower != itBuilding->second.end(); itPower++)
@@ -444,6 +384,20 @@ void APowerCheckerLogic::GetMaximumPotentialWithDetails
 					powerDetail.potential = itClock->first;
 
 					outPowerDetails.Add(powerDetail);
+
+					powerDetail.factories.Sort(
+						[owner](const AFGBuildableFactory& x, const AFGBuildableFactory& y)
+						{
+							float order = owner->GetDistanceTo(&x) - owner->GetDistanceTo(&y);
+
+							if (order == 0)
+							{
+								order = x.GetName().Compare(y.GetName());
+							}
+
+							return order < 0;
+						}
+						);
 				}
 			}
 		}
